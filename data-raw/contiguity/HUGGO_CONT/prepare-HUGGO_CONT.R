@@ -4,14 +4,21 @@
 # ready for many packages universe.
 
 # Stage one: Collecting data
-HUGGO_CONT <- readr::read_csv("data-raw/contiguity/HUGGO_CONT/FAO and Region Membership Data.csv")
+HUGGO_CONT <- readr::read_csv("data-raw/contiguity/HUGGO_CONT/FAO and Region Membership Data.csv", 
+  locale = locale(encoding = "UTF-8")
+)
 
-# Stage two: Correcting data
 # In this stage you will want to correct the variable names and
 # formats of the 'HUGGO_CONT' object until the object created
 # below (in stage three) passes all the tests.
 # We recommend that you avoid using one letter variable names to keep
 # away from issues with ambiguous names down the road.
+
+# Not an an ideal fix
+# Ideally this would be merged with the CIV mutation below
+# But the nonstandard character messes up the standardize_titles() call
+HUGGO_CONT$LISTNAME_EN[11] <- "Côte d'Ivoire"
+
 HUGGO_CONT <- as_tibble(HUGGO_CONT) %>%
   dplyr::filter(ID != "ISO3") %>%
   # filtering removes the rows that contain repetitions of variable names only
@@ -20,9 +27,7 @@ HUGGO_CONT <- as_tibble(HUGGO_CONT) %>%
                         Contiguity = HAS_BORDER_WITH,
                         Begin = messydates::as_messydate(VALID_SINCE),
                         End = messydates::as_messydate(VALID_UNTIL)) %>%
-  dplyr::mutate(StateName1 = manypkgs::code_states(StateName1, activity = F,
-                                                  replace = "names"),
-                StateName1 = ifelse(stateID == "CIV", "Cote d'Ivoire",
+  dplyr::mutate(StateName1 = ifelse(stateID == "CIV", "Cote d'Ivoire",
                                    StateName1),
                 StateName1 = ifelse(stringr::str_detect(StateName1, "Korea - "),
                                     "Democratic People's Republic of Korea",
@@ -33,17 +38,14 @@ HUGGO_CONT <- as_tibble(HUGGO_CONT) %>%
                       values_to = "StateName", values_drop_na = TRUE) %>%
   dplyr::mutate(StateName = stringr::str_remove_all(StateName, "_the"),
                 StateName = stringr::str_replace_all(StateName, "_", " "),
-                StateName2 = manypkgs::code_states(StateName, activity = F,
-                                                   replace = "names"),
+                StateName2 = StateName,
                 StateName2 = ifelse(is.na(StateName2), StateName, StateName2),
                 StateName2 = ifelse(stringr::str_detect(StateName2, "Korea - "),
                                     "Democratic People's Republic of Korea",
                                     StateName2),
-                stateID2 = manypkgs::code_states(StateName2, activity = F,
-                                                 replace = "ID"),
+                stateID2 = manystates::code_states(StateName2),
                 stateID2 = ifelse(stateID2 == "KOR - PRK", "PRK", stateID2),
-                stateID1 = manypkgs::code_states(StateName1, activity = F,
-                                                 replace = "ID"),
+                stateID1 = manystates::code_states(StateName1),
                 stateID1 = ifelse(is.na(stateID1), stateID, stateID1),
                 stateID1 = ifelse(stateID1 == "KOR - PRK", "PRK", stateID1),
                 # coding standardised with COW_CONT: 1 = shared border
@@ -83,5 +85,5 @@ HUGGO_CONT <- HUGGO_CONT %>%
 # that you're including in the package.
 # To add a template of .bib file to the package,
 # please run `manypkgs::add_bib("contiguity", "HUGGO_CONT")`.
-manypkgs::export_data(HUGGO_CONT, datacube = "contiguity",
+manypkgs::export_data(HUGGO_CONT, database = "contiguity",
                       URL = "Hand-coded data by the GGO team")
